@@ -63,19 +63,19 @@ export function MatchForm({ matches }: MatchFormProps) {
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // Formatea las predicciones
+    // Mapea las predicciones a L, E, V
     const resultMap: Record<string, string> = { local: "L", tie: "E", visitor: "V" };
-    const predictionsText = matches.map((match) => {
+    const predictionsArray = matches.map((match) => {
       const pred = values.predictions[match.id];
-      const short = resultMap[pred as keyof typeof resultMap] || "?";
-      return `${match.localTeam} vs ${match.visitorTeam}: ${short}`;
-    }).join("\n");
+      return resultMap[pred as keyof typeof resultMap] || "?";
+    });
+    const predictionsText = predictionsArray.join(",");
 
     // Mensaje para WhatsApp
     const message = 
       `Nombre: ${values.name}\n` +
       `Teléfono: ${values.phone}\n` +
-      `Predicciones:\n${predictionsText}`;
+      `Predicciones: ${predictionsText}`;
 
     // Codifica el mensaje para URL
     const encodedMessage = encodeURIComponent(message);
