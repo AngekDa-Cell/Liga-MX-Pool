@@ -3,7 +3,7 @@ import matchesData from '@/data/matches.json';
 import type { Match } from '@/types';
 import { MatchForm } from '@/components/match-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy } from 'lucide-react';
+import { Trophy, Goal } from 'lucide-react'; // Changed SoccerBall to Goal
 
 export default function HomePage() {
   const matches: Match[] = matchesData;
@@ -11,12 +11,15 @@ export default function HomePage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-background">
       <div className="max-w-3xl w-full">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl sm:text-5xl font-bold text-primary tracking-tight">
-            Quiniela Liga MX
-          </h1>
+        <header className="text-center mb-10">
+          <div className="flex items-center justify-center space-x-3 mb-2">
+            <Goal className="h-10 w-10 sm:h-12 sm:w-12 text-primary" /> {/* Changed SoccerBall to Goal */}
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary tracking-tight">
+              Quiniela Liga MX
+            </h1>
+          </div>
           <p className="text-lg sm:text-xl text-foreground mt-3">
-            Llena tus predicciones para la jornada semanal
+            ¡Demuestra tu pasión y conocimiento! Llena tus predicciones para la jornada.
           </p>
         </header>
         
