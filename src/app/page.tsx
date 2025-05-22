@@ -2,7 +2,8 @@
 import matchesData from '@/data/matches.json';
 import type { Match } from '@/types';
 import { MatchForm } from '@/components/match-form';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Trophy } from 'lucide-react';
 
 export default function HomePage() {
   const matches: Match[] = matchesData;
@@ -19,9 +20,24 @@ export default function HomePage() {
           </p>
         </header>
         
-        <Card className="shadow-xl">
+        <Card className="shadow-xl mb-8">
           <CardContent className="p-6 sm:p-8">
             <MatchForm matches={matches} />
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-accent">
+          <CardHeader className="flex flex-row items-center justify-center space-x-3 pb-2 pt-6">
+            <Trophy className="h-8 w-8 text-accent" />
+            <CardTitle className="text-2xl font-semibold text-accent">¡A Jugar!</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 pt-2 text-center">
+            <p className="text-muted-foreground italic">
+              "El fútbol es el deporte más hermoso del mundo. No se juega con los pies, se juega con el corazón."
+            </p>
+            <p className="text-sm text-foreground mt-4">
+              ¡Que gane el mejor y que la pasión por el fútbol nos una!
+            </p>
           </CardContent>
         </Card>
 
