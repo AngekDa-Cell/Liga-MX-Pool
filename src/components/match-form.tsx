@@ -87,10 +87,10 @@ export function MatchForm({ matches }: MatchFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         
         <Card className="shadow-md">
-          <CardHeader className="pb-4">
+          <CardHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 sm:pb-4">
             <CardTitle className="text-center text-xl font-semibold">Información del Participante</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 pt-2">
+          <CardContent className="space-y-4 px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-2">
             <FormField
               control={form.control}
               name="name"
@@ -121,12 +121,12 @@ export function MatchForm({ matches }: MatchFormProps) {
         </Card>
 
         <div className="text-center pt-4">
-          <h2 className="text-2xl font-semibold text-primary">Predicciones de Partidos</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold text-primary">Predicciones de Partidos</h2>
         </div>
 
         {matches.map((match) => (
           <Card key={match.id} className="shadow-md hover:shadow-lg transition-shadow duration-200">
-            <CardHeader className="pb-4">
+            <CardHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 sm:pb-4">
               <CardTitle className="text-center text-xl font-semibold">
                 <div className="flex items-center justify-around">
                   <div className="flex flex-col items-center space-y-1 w-2/5 text-center">
@@ -155,7 +155,7 @@ export function MatchForm({ matches }: MatchFormProps) {
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
               <FormField
                 control={form.control}
                 name={`predictions.${match.id}` as any} // Adjusted name for nested structure
@@ -168,7 +168,7 @@ export function MatchForm({ matches }: MatchFormProps) {
                         className="flex flex-col sm:flex-row justify-around items-center pt-2"
                         aria-label={`Resultado para ${match.localTeam} vs ${match.visitorTeam}`}
                       >
-                        <FormItem className="flex items-center space-x-2 space-y-0 p-2">
+                        <FormItem className="flex items-center space-x-2 space-y-0 py-2 px-1 sm:p-2">
                           <FormControl>
                             <RadioGroupItem value="local" id={`${match.id}-local`} />
                           </FormControl>
@@ -176,7 +176,7 @@ export function MatchForm({ matches }: MatchFormProps) {
                             Local
                           </FormLabel>
                         </FormItem>
-                        <FormItem className="flex items-center space-x-2 space-y-0 p-2">
+                        <FormItem className="flex items-center space-x-2 space-y-0 py-2 px-1 sm:p-2">
                           <FormControl>
                             <RadioGroupItem value="tie" id={`${match.id}-tie`} />
                           </FormControl>
@@ -184,7 +184,7 @@ export function MatchForm({ matches }: MatchFormProps) {
                             Empate
                           </FormLabel>
                         </FormItem>
-                        <FormItem className="flex items-center space-x-2 space-y-0 p-2">
+                        <FormItem className="flex items-center space-x-2 space-y-0 py-2 px-1 sm:p-2">
                           <FormControl>
                             <RadioGroupItem value="visitor" id={`${match.id}-visitor`} />
                           </FormControl>
