@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ChangeEvent } from "react";
@@ -64,22 +63,31 @@ export function MatchForm({ matches }: MatchFormProps) {
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    startTransition(async () => {
-      const result = await submitPredictionsAction(values);
-      if (result.success) {
-        toast({
-          title: "Éxito",
-          description: result.message,
-        });
-        form.reset(); 
-      } else {
-        toast({
-          title: "Error",
-          description: result.message,
-          variant: "destructive",
-        });
-      }
-    });
+    // Formatea las predicciones
+    const resultMap: Record<string, string> = { local: "L", tie: "E", visitor: "V" };
+    const predictionsText = matches.map((match) => {
+      const pred = values.predictions[match.id];
+      const short = resultMap[pred as keyof typeof resultMap] || "?";
+      return `${match.localTeam} vs ${match.visitorTeam}: ${short}`;
+    }).join("\n");
+
+    // Mensaje para WhatsApp
+    const message = 
+      `Nombre: ${values.name}\n` +
+      `Teléfono: ${values.phone}\n` +
+      `Predicciones:\n${predictionsText}`;
+
+    // Codifica el mensaje para URL
+    const encodedMessage = encodeURIComponent(message);
+
+    // Número de WhatsApp (sin + ni espacios)
+    const phone = "524437835437"; // 52 es el código de México
+
+    // URL de WhatsApp
+    const waUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+
+    // Abre WhatsApp en una nueva pestaña
+    window.open(waUrl, "_blank");
   };
 
   return (
@@ -212,7 +220,6 @@ export function MatchForm({ matches }: MatchFormProps) {
             "Enviar Quiniela"
           )}
         </Button>
- <FormMessage>{form.formState.errors.root?.message || form.formState.errors.predictions?.message}</FormMessage>
       </form>
     </Form>
   );

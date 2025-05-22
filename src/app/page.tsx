@@ -46,7 +46,6 @@ export default function HomePage() {
 
         <footer className="text-center mt-12 text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Liga MX Pool. Todos los derechos reservados.</p>
-          <p className="mt-1">Modifica los partidos localmente en `src/data/matches.json`.</p>
         </footer>
       </div>
     </main>
