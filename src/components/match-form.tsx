@@ -212,6 +212,7 @@ export function MatchForm({ matches }: MatchFormProps) {
             "Enviar Quiniela"
           )}
         </Button>
+ <FormMessage>{form.formState.errors.root?.message || form.formState.errors.predictions?.message}</FormMessage>
       </form>
     </Form>
   );
