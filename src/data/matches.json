@@ -1,0 +1,52 @@
+
+[
+  {
+    "id": "match1",
+    "localTeam": "Club América",
+    "visitorTeam": "Chivas Guadalajara",
+    "localLogoUrl": "https://placehold.co/64x64.png",
+    "visitorLogoUrl": "https://placehold.co/64x64.png"
+  },
+  {
+    "id": "match2",
+    "localTeam": "Cruz Azul",
+    "visitorTeam": "Pumas UNAM",
+    "localLogoUrl": "https://placehold.co/64x64.png",
+    "visitorLogoUrl": "https://placehold.co/64x64.png"
+  },
+  {
+    "id": "match3",
+    "localTeam": "Tigres UANL",
+    "visitorTeam": "CF Monterrey",
+    "localLogoUrl": "https://placehold.co/64x64.png",
+    "visitorLogoUrl": "https://placehold.co/64x64.png"
+  },
+  {
+    "id": "match4",
+    "localTeam": "Santos Laguna",
+    "visitorTeam": "Atlas FC",
+    "localLogoUrl": "https://placehold.co/64x64.png",
+    "visitorLogoUrl": "https://placehold.co/64x64.png"
+  },
+  {
+    "id": "match5",
+    "localTeam": "León",
+    "visitorTeam": "Toluca",
+    "localLogoUrl": "https://placehold.co/64x64.png",
+    "visitorLogoUrl": "https://placehold.co/64x64.png"
+  },
+  {
+    "id": "match6",
+    "localTeam": "Pachuca",
+    "visitorTeam": "Mazatlán FC",
+    "localLogoUrl": "https://placehold.co/64x64.png",
+    "visitorLogoUrl": "https://placehold.co/64x64.png"
+  },
+  {
+    "id": "match7",
+    "localTeam": "FC Juárez",
+    "visitorTeam": "Necaxa",
+    "localLogoUrl": "https://placehold.co/64x64.png",
+    "visitorLogoUrl": "https://placehold.co/64x64.png"
+  }
+]
