@@ -5,10 +5,10 @@ import type { ChangeEvent } from "react";
 import React, { useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z, type ZodEnum, type ZodObject, type ZodRawShape } from "zod";
+import { z, type ZodEnum, type ZodObject } from "zod";
 import Image from "next/image";
 
-import type { Match, Predictions, PredictionValue } from "@/types";
+import type { Match, MatchPredictions, QuinielaFormValues } from "@/types";
 import { submitPredictionsAction } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,29 +30,37 @@ interface MatchFormProps {
   matches: Match[];
 }
 
-const createPredictionSchema = (matches: Match[]) => {
-  const schemaFields = matches.reduce((acc, match) => {
+const createQuinielaFormSchema = (matches: Match[]) => {
+  const matchPredictionFields = matches.reduce((acc, match) => {
     acc[match.id] = z.enum(["local", "tie", "visitor"], {
       required_error: `Por favor, selecciona un resultado para ${match.localTeam} vs ${match.visitorTeam}.`,
     });
     return acc;
   }, {} as Record<string, ZodEnum<["local", "tie", "visitor"]>>);
   
-  return z.object(schemaFields as ZodRawShape) as ZodObject<Record<string, ZodEnum<['local', 'tie', 'visitor']>>, "strip", z.ZodTypeAny, {[k: string]: PredictionValue}, {[k: string]: PredictionValue}>;
+  return z.object({
+    name: z.string().min(1, { message: "El nombre es requerido." }),
+    phone: z.string().min(1, { message: "El número de teléfono es requerido." }),
+    predictions: z.object(matchPredictionFields) as ZodObject<Record<string, ZodEnum<['local', 'tie', 'visitor']>>, "strip", z.ZodTypeAny, MatchPredictions, MatchPredictions>,
+  });
 };
 
 export function MatchForm({ matches }: MatchFormProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
-  const formSchema = useMemo(() => createPredictionSchema(matches), [matches]);
+  const formSchema = useMemo(() => createQuinielaFormSchema(matches), [matches]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: matches.reduce((acc, match) => {
-      acc[match.id] = undefined; // Initialize with undefined
-      return acc;
-    }, {} as Predictions),
+    defaultValues: {
+      name: "",
+      phone: "",
+      predictions: matches.reduce((acc, match) => {
+        acc[match.id] = undefined; 
+        return acc;
+      }, {} as MatchPredictions),
+    },
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -62,7 +71,7 @@ export function MatchForm({ matches }: MatchFormProps) {
           title: "Éxito",
           description: result.message,
         });
-        form.reset(); // Reset form after successful submission
+        form.reset(); 
       } else {
         toast({
           title: "Error",
@@ -75,7 +84,46 @@ export function MatchForm({ matches }: MatchFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        
+        <Card className="shadow-md">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-center text-xl font-semibold">Información del Participante</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-2">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre Completo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej: Juan Pérez" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Número de Teléfono</FormLabel>
+                  <FormControl>
+                    <Input type="tel" placeholder="Ej: 5512345678" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <div className="text-center pt-4">
+          <h2 className="text-2xl font-semibold text-primary">Predicciones de Partidos</h2>
+        </div>
+
         {matches.map((match) => (
           <Card key={match.id} className="shadow-md hover:shadow-lg transition-shadow duration-200">
             <CardHeader className="pb-4">
@@ -110,7 +158,7 @@ export function MatchForm({ matches }: MatchFormProps) {
             <CardContent>
               <FormField
                 control={form.control}
-                name={match.id}
+                name={`predictions.${match.id}` as any} // Adjusted name for nested structure
                 render={({ field }) => (
                   <FormItem className="space-y-3">
                     <FormControl>

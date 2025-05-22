@@ -9,4 +9,12 @@ export interface Match {
 
 export type PredictionValue = "local" | "tie" | "visitor";
 
-export type Predictions = Record<string, PredictionValue>;
+// Este tipo es para las predicciones individuales de los partidos
+export type MatchPredictions = Record<string, PredictionValue | undefined>;
+
+// Este tipo representa todos los datos del formulario, incluida la información del usuario
+export interface QuinielaFormValues {
+  name: string;
+  phone: string;
+  predictions: MatchPredictions;
+}
