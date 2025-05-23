@@ -93,7 +93,7 @@ export function MatchForm({ matches }: MatchFormProps) {
       `${quinielasText}`;
 
     const encodedMessage = encodeURIComponent(message);
-    const phone = "5213122916489";
+    const phone = "523122916489";
     const waUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
     window.open(waUrl, "_blank");
   };
