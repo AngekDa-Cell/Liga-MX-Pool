@@ -9,6 +9,9 @@ import Image from "next/image";
 
 import type { Match, MatchPredictions, QuinielaFormValues } from "@/types";
 import { submitPredictionsAction } from "@/lib/actions";
+
+// Define PredictionValue type if not imported
+type PredictionValue = "local" | "tie" | "visitor";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -23,164 +26,87 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Minus } from "lucide-react";
 
 interface MatchFormProps {
   matches: Match[];
 }
 
-const createQuinielaFormSchema = (matches: Match[]) => {
-  const matchPredictionFields = matches.reduce((acc, match) => {
-    acc[match.id] = z.enum(["local", "tie", "visitor"], {
-      required_error: `Por favor, selecciona un resultado para ${match.localTeam} vs ${match.visitorTeam}.`,
-    });
-    return acc;
-  }, {} as Record<string, ZodEnum<["local", "tie", "visitor"]>>);
-  
-  return z.object({
-    name: z.string().min(1, { message: "El nombre es requerido." }),
-    phone: z.string().min(1, { message: "El número de teléfono es requerido." }),
-    predictions: z.object(matchPredictionFields) as ZodObject<Record<string, ZodEnum<['local', 'tie', 'visitor']>>, "strip", z.ZodTypeAny, MatchPredictions, MatchPredictions>,
-  });
-};
-
 export function MatchForm({ matches }: MatchFormProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
-  const formSchema = useMemo(() => createQuinielaFormSchema(matches), [matches]);
+  // Estado para múltiples quinielas
+  const [quinielas, setQuinielas] = useState([
+    matches.reduce((acc, match) => {
+      acc[match.id] = undefined;
+      return acc;
+    }, {} as MatchPredictions),
+  ]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      phone: "",
-      predictions: matches.reduce((acc, match) => {
-        acc[match.id] = undefined; 
-        return acc;
-      }, {} as MatchPredictions),
-    },
+  // Formulario para nombre y teléfono
+  const form = useForm<{ name: string; phone: string }>({
+    defaultValues: { name: "", phone: "" },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // Mapea las predicciones a L, E, V
-    const resultMap: Record<string, string> = { local: "L", tie: "E", visitor: "V" };
-    const predictionsArray = matches.map((match) => {
-      const pred = values.predictions[match.id];
-      return resultMap[pred as keyof typeof resultMap] || "?";
-    });
-    const predictionsText = predictionsArray.join(",");
+  // Maneja cambios en una quiniela individual
+  const handlePredictionChange = (quinielaIdx: number, matchId: string, value: string) => {
+    setQuinielas((prev) =>
+      prev.map((q, idx) =>
+        idx === quinielaIdx ? { ...q, [matchId]: value as PredictionValue } : q
+      )
+    );
+  };
+  
+  // Agregar una nueva quiniela
+  const addQuiniela = () => {
+    setQuinielas((prev) => [
+      ...prev,
+      matches.reduce((acc, match) => {
+        acc[match.id] = undefined;
+        return acc;
+      }, {} as MatchPredictions),
+    ]);
+  };
 
-    // Mensaje para WhatsApp
-    const message = 
+  // Quitar la última quiniela (si hay más de una)
+  const removeQuiniela = () => {
+    if (quinielas.length > 1) setQuinielas((prev) => prev.slice(0, -1));
+  };
+
+  // Enviar todas las quinielas
+  const onSubmit = (values: { name: string; phone: string }) => {
+    const resultMap: Record<string, string> = { local: "L", tie: "E", visitor: "V" };
+    const quinielasText = quinielas
+      .map((quiniela, idx) => {
+        const predictionsArray = matches.map((match) => {
+          const pred = quiniela[match.id];
+          return resultMap[pred as keyof typeof resultMap] || "?";
+        });
+        return `Predicción ${idx + 1}: ${predictionsArray.join(",")}`;
+      })
+      .join("\n");
+
+    const message =
       `Nombre: ${values.name}\n` +
       `Teléfono: ${values.phone}\n` +
-      `Predicciones: ${predictionsText}`;
+      `${quinielasText}`;
 
-    // Codifica el mensaje para URL
     const encodedMessage = encodeURIComponent(message);
-
-    // Número de WhatsApp (sin + ni espacios)
-    const phone = "524437835437"; // 52 es el código de México
-
-    // URL de WhatsApp
+    const phone = "5213122916489";
     const waUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
-
-    // Abre WhatsApp en una nueva pestaña
     window.open(waUrl, "_blank");
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        
-        <div className="text-center pt-4">
-          <h2 className="text-xl sm:text-2xl font-semibold text-primary">Predicciones de Partidos</h2>
-        </div>
-
-        {matches.map((match) => (
-          <Card key={match.id} className="shadow-md hover:shadow-lg transition-shadow duration-200">
-            <CardHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 sm:pb-4">
-              <CardTitle className="text-center text-xl font-semibold">
-                <div className="flex items-center justify-around">
-                  <div className="flex flex-col items-center space-y-1 w-2/5 text-center">
-                    <Avatar className="h-10 w-10 sm:h-16 sm:w-16 mb-1">
-                      <AvatarImage 
-                        src={match.localLogoUrl} 
-                        alt={`${match.localTeam} logo`} 
-                        data-ai-hint="logo football"
-                      />
-                      <AvatarFallback>{match.localTeam.substring(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs sm:text-base">{match.localTeam}</span>
-                  </div>
-                  <span className="mx-1 text-base sm:text-2xl font-bold text-muted-foreground">VS</span>
-                  <div className="flex flex-col items-center space-y-1 w-2/5 text-center">
-                    <Avatar className="h-10 w-10 sm:h-16 sm:w-16 mb-1">
-                      <AvatarImage 
-                        src={match.visitorLogoUrl} 
-                        alt={`${match.visitorTeam} logo`} 
-                        data-ai-hint="logo football"
-                      />
-                      <AvatarFallback>{match.visitorTeam.substring(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs sm:text-base">{match.visitorTeam}</span>
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 pb-4 pt-0 sm:px-6 sm:pb-6">
-              <FormField
-                control={form.control}
-                name={`predictions.${match.id}` as any}
-                render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="flex flex-row justify-around items-center pt-1 sm:pt-2"
-                        aria-label={`Resultado para ${match.localTeam} vs ${match.visitorTeam}`}
-                      >
-                        <FormItem className="flex items-center space-x-1 space-y-0 p-1 sm:p-2">
-                          <FormControl>
-                            <RadioGroupItem value="local" id={`${match.id}-local`} />
-                          </FormControl>
-                          <FormLabel htmlFor={`${match.id}-local`} className="font-normal text-sm cursor-pointer hover:text-primary">
-                            Local
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-1 space-y-0 p-1 sm:p-2">
-                          <FormControl>
-                            <RadioGroupItem value="tie" id={`${match.id}-tie`} />
-                          </FormControl>
-                          <FormLabel htmlFor={`${match.id}-tie`} className="font-normal text-sm cursor-pointer hover:text-primary">
-                            Empate
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-1 space-y-0 p-1 sm:p-2">
-                          <FormControl>
-                            <RadioGroupItem value="visitor" id={`${match.id}-visitor`} />
-                          </FormControl>
-                          <FormLabel htmlFor={`${match.id}-visitor`} className="font-normal text-sm cursor-pointer hover:text-primary">
-                            Visita
-                          </FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage className="text-center text-xs sm:text-sm" />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-        ))}
-
+        {/* Nombre y teléfono */}
         <Card className="shadow-md mt-8">
-          <CardHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 sm:pb-4">
+          <CardHeader>
             <CardTitle className="text-center text-xl font-semibold">Información del Participante</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-2">
+          <CardContent className="space-y-4">
             <FormField
               control={form.control}
               name="name"
@@ -188,7 +114,7 @@ export function MatchForm({ matches }: MatchFormProps) {
                 <FormItem>
                   <FormLabel>Nombre Completo</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: Juan Pérez" {...field} className="text-sm sm:text-base"/>
+                    <Input placeholder="Ej: Juan Pérez" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -201,7 +127,7 @@ export function MatchForm({ matches }: MatchFormProps) {
                 <FormItem>
                   <FormLabel>Número de Teléfono</FormLabel>
                   <FormControl>
-                    <Input type="tel" placeholder="Ej: 5512345678" {...field} className="text-sm sm:text-base"/>
+                    <Input type="tel" placeholder="Ej: 5512345678" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -209,6 +135,50 @@ export function MatchForm({ matches }: MatchFormProps) {
             />
           </CardContent>
         </Card>
+
+        {/* Quinielas dinámicas */}
+        {quinielas.map((quiniela, quinielaIdx) => (
+          <Card key={quinielaIdx} className="shadow-md mt-8">
+            <CardHeader>
+              <CardTitle className="text-center text-lg font-semibold">
+                Predicción {quinielaIdx + 1}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {matches.map((match) => (
+                <div key={match.id} className="mb-4">
+                  <div className="flex items-center justify-between">
+                    <span>{match.localTeam} vs {match.visitorTeam}</span>
+                    <RadioGroup
+                      value={quiniela[match.id]}
+                      onValueChange={(value) =>
+                        handlePredictionChange(quinielaIdx, match.id, value)
+                      }
+                      className="flex flex-row space-x-2"
+                    >
+                      <RadioGroupItem value="local" id={`q${quinielaIdx}-${match.id}-local`} />
+                      <FormLabel htmlFor={`q${quinielaIdx}-${match.id}-local`}>L</FormLabel>
+                      <RadioGroupItem value="tie" id={`q${quinielaIdx}-${match.id}-tie`} />
+                      <FormLabel htmlFor={`q${quinielaIdx}-${match.id}-tie`}>E</FormLabel>
+                      <RadioGroupItem value="visitor" id={`q${quinielaIdx}-${match.id}-visitor`} />
+                      <FormLabel htmlFor={`q${quinielaIdx}-${match.id}-visitor`}>V</FormLabel>
+                    </RadioGroup>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ))}
+
+        {/* Botones para agregar/quitar quinielas */}
+        <div className="flex justify-center space-x-4">
+          <Button type="button" onClick={addQuiniela} variant="outline">
+            <Plus className="mr-2 h-4 w-4" /> Agregar Predicción
+          </Button>
+          <Button type="button" onClick={removeQuiniela} variant="outline" disabled={quinielas.length === 1}>
+            <Minus className="mr-2 h-4 w-4" /> Quitar Predicción
+          </Button>
+        </div>
 
         <Button type="submit" className="w-full text-lg py-6 mt-8" disabled={isPending}>
           {isPending ? (
