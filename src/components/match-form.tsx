@@ -1,20 +1,14 @@
 "use client";
 
-import type { ChangeEvent } from "react";
-import React, { useEffect, useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z, type ZodEnum, type ZodObject } from "zod";
 import Image from "next/image";
 
-import type { Match, MatchPredictions, QuinielaFormValues } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { Match, PredictionValue, QuinielaFormValues } from "@/types";
 import { submitPredictionsAction } from "@/lib/actions";
-
-// Define PredictionValue type if not imported
-type PredictionValue = "local" | "tie" | "visitor";
-
-// Define a more flexible type for individual quiniela predictions
-type QuinielaStateEntry = Record<string, PredictionValue | PredictionValue[] | undefined>;
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,10 +24,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Minus } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+
+// Define a more flexible type for individual quiniela predictions
+type QuinielaStateEntry = Record<string, PredictionValue | PredictionValue[] | undefined>;
 
 interface MatchFormProps {
   matches: Match[];
@@ -142,18 +138,16 @@ export function MatchForm({ matches }: MatchFormProps) {
 
   // Enviar todas las quinielas (guardadas + activa si tiene datos)
   const onSubmit = (values: { name: string; phone: string }) => {
-    // 1. Validar que el nombre y el teléfono del participante estén ingresados
     if (!values.name || !values.phone) {
       toast({
-        title: "Información del Participante Incompleta",
-        description: "Por favor, ingresa tu nombre y número de teléfono en la sección correspondiente.",
+        title: "Información Incompleta",
+        description: "Por favor, ingresa tu nombre y número de teléfono.",
         variant: "destructive",
       });
       return;
     }
 
-    let predictionsToSubmit = [...submittedQuinielas];
-
+    let finalPredictionsToSubmit = [...submittedQuinielas];
     const isActiveQuinielaPopulated = Object.values(activeQuiniela).some(
       (val) => (Array.isArray(val) && val.length > 0) || (typeof val === 'string' && val)
     );
@@ -162,26 +156,23 @@ export function MatchForm({ matches }: MatchFormProps) {
       if (matches.length > 0) {
         const allMatchesInActiveSelected = matches.every(match => {
           const selection = activeQuiniela[match.id];
-          if (multiSelect) {
-            return Array.isArray(selection) && selection.length > 0;
-          } else {
-            return typeof selection === 'string' && selection;
-          }
+          return multiSelect
+            ? Array.isArray(selection) && selection.length > 0
+            : typeof selection === 'string';
         });
-
         if (!allMatchesInActiveSelected) {
           toast({
-            title: "Predicción Activa Incompleta",
-            description: `La predicción actual (Nº ${submittedQuinielas.length + 1}) no está completa. Por favor, selecciona un resultado para cada partido antes de enviar, o utiliza el botón 'Agregar Predicción' para validarla y guardarla primero.`,
+            title: "Quiniela Actual Incompleta",
+            description: "Por favor, completa todas las predicciones en la quiniela activa antes de enviar.",
             variant: "destructive",
           });
           return;
         }
       }
-      predictionsToSubmit.push(activeQuiniela);
+      finalPredictionsToSubmit.push(activeQuiniela);
     }
 
-    if (predictionsToSubmit.length === 0) {
+    if (finalPredictionsToSubmit.length === 0) {
       toast({
         title: "No Hay Predicciones Para Enviar",
         description: "No has agregado ninguna predicción. Por favor, completa la quiniela actual y usa 'Agregar Predicción', o asegúrate de tener predicciones guardadas.",
@@ -190,39 +181,89 @@ export function MatchForm({ matches }: MatchFormProps) {
       return;
     }
 
-    const quinielasText = predictionsToSubmit
-      .map((quiniela, idx) => {
-        const predictionsArray = matches.map((match) => {
-          const predValue = quiniela[match.id];
-          if (Array.isArray(predValue)) {
-            if (predValue.length === 0) return "?";
-            return predValue.map(p => resultMap[p] || "?").join("+");
-          } else if (predValue) {
-            return resultMap[predValue as PredictionValue] || "?";
+    startTransition(async () => {
+      const submissionPromises = finalPredictionsToSubmit.map(predictionSet => {
+        const formData: QuinielaFormValues = {
+          name: values.name,
+          phone: values.phone,
+          predictions: predictionSet,
+        };
+        return submitPredictionsAction(formData);
+      });
+
+      try {
+        const results = await Promise.all(submissionPromises);
+        const successfulSubmissions = results.filter(result => result.success);
+        const failedSubmissions = results.filter(result => !result.success);
+        let allAttemptedDbSubmissionsSuccessful = false;
+
+        if (failedSubmissions.length > 0) {
+          toast({
+            title: `Error al Guardar ${failedSubmissions.length > 1 ? 'Algunas' : 'una'} Quiniela(s)`,
+            description: `No se pudieron guardar ${failedSubmissions.length} de ${finalPredictionsToSubmit.length} quiniela(s) en la base de datos. ${failedSubmissions.map(f => f.message).join("; ")}`,
+            variant: "destructive",
+          });
+        }
+
+        if (successfulSubmissions.length > 0) {
+          if (successfulSubmissions.length === finalPredictionsToSubmit.length) {
+            allAttemptedDbSubmissionsSuccessful = true;
+            toast({
+              title: "¡Todas las Quinielas Guardadas!",
+              description: `Se ${successfulSubmissions.length > 1 ? 'guardaron' : 'guardó'} ${successfulSubmissions.length} quiniela(s) exitosamente en la base de datos.`,
+              variant: "default",
+            });
+          } else {
+             toast({
+              title: "Algunas Quinielas Guardadas",
+              description: `Se guardaron ${successfulSubmissions.length} de ${finalPredictionsToSubmit.length} quiniela(s) en la base de datos.`,
+              variant: "default",
+            });
           }
-          return "?";
+
+          // Proceed with WhatsApp message generation using ALL originally intended predictions
+          const quinielasText = finalPredictionsToSubmit
+            .map((quiniela, idx) => {
+              const predictionsArray = matches.map((match) => {
+                const prediction = quiniela[match.id];
+                if (Array.isArray(prediction)) {
+                  return prediction.map(p => resultMap[p] || p).join('/');
+                }
+                return prediction ? resultMap[prediction as PredictionValue] || prediction : "-";
+              });
+              return `Predicción ${idx + 1}: ${predictionsArray.join(",")}`;
+            })
+            .join("\\n"); // Using \\n for the literal string in the generated message
+
+          const message = `Nombre: ${values.name}\nTeléfono: ${values.phone}\n${quinielasText}`;
+          const encodedMessage = encodeURIComponent(message);
+          const phoneContact = "524437835437"; // Reemplaza con el número de teléfono real
+          const waUrl = `https://wa.me/${phoneContact}?text=${encodedMessage}`;
+          window.open(waUrl, "_blank");
+          
+          toast({
+            title: "¡Quinielas Listas para Enviar por WhatsApp!",
+            description: "Tus predicciones han sido preparadas y se abrirá WhatsApp.",
+            variant: "default",
+          });
+
+          // Reset form and state only if all DB submissions were successful
+          if (allAttemptedDbSubmissionsSuccessful) {
+            form.reset();
+            setSubmittedQuinielas([]);
+            setActiveQuiniela(createNewQuinielaEntry(multiSelect));
+          }
+        } else if (failedSubmissions.length === finalPredictionsToSubmit.length && finalPredictionsToSubmit.length > 0) {
+          // All failed, specific toast already shown by the failedSubmissions.length > 0 block
+        }
+
+      } catch (error) {
+        toast({
+          title: "Error Inesperado al Enviar",
+          description: error instanceof Error ? error.message : "Ocurrió un error al procesar las quinielas.",
+          variant: "destructive",
         });
-        return `Predicción ${idx + 1}: ${predictionsArray.join(",")}`;
-      })
-      .join("\n");
-
-    const message =
-      `Nombre: ${values.name}\n` +
-      `Teléfono: ${values.phone}\n` +
-      `${quinielasText}`;
-
-    const encodedMessage = encodeURIComponent(message);
-    const phoneContact = "524437835437"; // Reemplaza con el número de teléfono real
-    const waUrl = `https://wa.me/${phoneContact}?text=${encodedMessage}`;
-    window.open(waUrl, "_blank");
-
-    form.reset();
-    setSubmittedQuinielas([]);
-    setActiveQuiniela(createNewQuinielaEntry(multiSelect));
-    toast({
-      title: "¡Quinielas Listas para Enviar!",
-      description: "Tus predicciones han sido preparadas y se abrirá WhatsApp.",
-      variant: "default",
+      }
     });
   };
 

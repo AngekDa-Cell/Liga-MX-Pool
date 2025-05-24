@@ -7,8 +7,9 @@ import matchesData from "@/data/matches.json";
 // import path from 'path'; // No longer needed for direct DB saving
 
 // Import Prisma Client
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+// import { PrismaClient } from '@prisma/client';
+import { prisma } from "./prisma"; // Import the prisma instance
+// const prisma = new PrismaClient();
 
 interface SubmissionResult {
   success: boolean;
