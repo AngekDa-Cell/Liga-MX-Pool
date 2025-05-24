@@ -1,4 +1,3 @@
-
 [
   {
     "id": "match1",
@@ -46,6 +45,20 @@
     "id": "match7",
     "localTeam": "FC Juárez",
     "visitorTeam": "Necaxa",
+    "localLogoUrl": "https://placehold.co/64x64.png",
+    "visitorLogoUrl": "https://placehold.co/64x64.png"
+  },
+  {
+    "id": "match8",
+    "localTeam": "Querétaro",
+    "visitorTeam": "Puebla",
+    "localLogoUrl": "https://placehold.co/64x64.png",
+    "visitorLogoUrl": "https://placehold.co/64x64.png"
+  },
+  {
+    "id": "match9",
+    "localTeam": "Tijuana",
+    "visitorTeam": "Atlético San Luis",
     "localLogoUrl": "https://placehold.co/64x64.png",
     "visitorLogoUrl": "https://placehold.co/64x64.png"
   }
