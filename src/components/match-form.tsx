@@ -246,7 +246,6 @@ export function MatchForm({ matches }: MatchFormProps) {
     };
 
     setActiveQuiniela(prev => transformEntry(prev));
-    setSubmittedQuinielas(prevList => prevList.map(transformEntry));
   }, [multiSelect, matches]);
 
 
