@@ -28,21 +28,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Minus } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface MatchFormProps {
   matches: Match[];
 }
-
-// Define PredictionValue type if not imported (assuming it's already defined or imported)
-// type PredictionValue = "local" | "tie" | "visitor";
-
-// Define a more flexible type for individual quiniela predictions (assuming it's already defined or imported)
-// type QuinielaStateEntry = Record<string, PredictionValue | PredictionValue[] | undefined>;
 
 const resultMap: Record<PredictionValue, string> = { local: "L", tie: "E", visitor: "V" };
 
@@ -64,6 +59,7 @@ export function MatchForm({ matches }: MatchFormProps) {
   // Formulario para nombre y teléfono
   const form = useForm<{ name: string; phone: string }>({
     defaultValues: { name: "", phone: "" },
+    // resolver: zodResolver(schema) // Si tuvieras un schema para name y phone
   });
 
   // Maneja cambios en la quiniela activa (multi-select)
@@ -89,58 +85,112 @@ export function MatchForm({ matches }: MatchFormProps) {
 
   // Agregar la quiniela activa a las enviadas y resetear la activa
   const addPredictionToSummary = () => {
-    // Check if activeQuiniela has any selections
-    const isActiveQuinielaPopulated = Object.values(activeQuiniela).some(
-        (val) => (Array.isArray(val) && val.length > 0) || (typeof val === 'string' && val)
-    );
+    const { name, phone } = form.getValues(); // Obtener valores actuales del formulario
 
-    if (!isActiveQuinielaPopulated && submittedQuinielas.length === 0 && matches.length > 0) {
+    // 1. Validar que el nombre y el teléfono estén ingresados
+    if (!name || !phone) {
+      toast({
+        title: "Información Incompleta",
+        description: "Por favor, ingresa tu nombre y número de teléfono antes de agregar una predicción.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 2. Validar que todos los partidos tengan una selección (solo si hay partidos)
+    if (matches.length > 0) {
+      const allMatchesSelected = matches.every(match => {
+        const selection = activeQuiniela[match.id];
+        if (multiSelect) {
+          return Array.isArray(selection) && selection.length > 0;
+        } else {
+          return typeof selection === 'string' && selection; // Asegura que no sea undefined o ""
+        }
+      });
+
+      if (!allMatchesSelected) {
         toast({
-            title: "Predicción Vacía",
-            description: "Por favor, selecciona al menos un resultado para la predicción actual antes de agregarla.",
-            variant: "default",
+          title: "Predicción Incompleta",
+          description: "Por favor, selecciona un resultado para cada partido antes de agregar la predicción.",
+          variant: "destructive",
         });
         return;
-    }
-    if (isActiveQuinielaPopulated || matches.length === 0) { // Allow adding empty if no matches
-        setSubmittedQuinielas((prev) => [...prev, activeQuiniela]);
-        setActiveQuiniela(createNewQuinielaEntry(multiSelect));
-    } else if (submittedQuinielas.length > 0) { // If active is empty but there are submitted ones, still allow adding a new blank one
-        setSubmittedQuinielas((prev) => [...prev, activeQuiniela]); // Add the empty one
-        setActiveQuiniela(createNewQuinielaEntry(multiSelect));
+      }
     }
 
-
+    // Si todas las validaciones pasan, agregar la predicción
+    setSubmittedQuinielas((prev) => [...prev, activeQuiniela]);
+    setActiveQuiniela(createNewQuinielaEntry(multiSelect));
+    toast({
+      title: "Predicción Agregada",
+      description: `La predicción ${submittedQuinielas.length + 1} ha sido guardada. Puedes agregar más o enviar.`,
+      variant: "default",
+    });
   };
 
   // Quitar la última quiniela guardada
   const removeLastSubmittedQuiniela = () => {
     if (submittedQuinielas.length > 0) {
       setSubmittedQuinielas((prev) => prev.slice(0, -1));
+      toast({
+        title: "Predicción Eliminada",
+        description: "La última predicción guardada ha sido eliminada.",
+        variant: "default",
+      });
     }
   };
 
   // Enviar todas las quinielas (guardadas + activa si tiene datos)
   const onSubmit = (values: { name: string; phone: string }) => {
-    let allPredictionsToSubmit = [...submittedQuinielas];
-    const isActiveQuinielaPopulated = Object.values(activeQuiniela).some(
-      (val) => (Array.isArray(val) && val.length > 0) || (typeof val === 'string' && val)
-    );
-
-    if (isActiveQuinielaPopulated) {
-      allPredictionsToSubmit.push(activeQuiniela);
-    }
-
-    if (allPredictionsToSubmit.length === 0) {
+    // 1. Validar que el nombre y el teléfono del participante estén ingresados
+    if (!values.name || !values.phone) {
       toast({
-        title: "No hay predicciones",
-        description: "Por favor, completa y agrega al menos una predicción antes de enviar.",
+        title: "Información del Participante Incompleta",
+        description: "Por favor, ingresa tu nombre y número de teléfono en la sección correspondiente.",
         variant: "destructive",
       });
       return;
     }
 
-    const quinielasText = allPredictionsToSubmit
+    let predictionsToSubmit = [...submittedQuinielas];
+
+    const isActiveQuinielaPopulated = Object.values(activeQuiniela).some(
+      (val) => (Array.isArray(val) && val.length > 0) || (typeof val === 'string' && val)
+    );
+
+    if (isActiveQuinielaPopulated) {
+      if (matches.length > 0) {
+        const allMatchesInActiveSelected = matches.every(match => {
+          const selection = activeQuiniela[match.id];
+          if (multiSelect) {
+            return Array.isArray(selection) && selection.length > 0;
+          } else {
+            return typeof selection === 'string' && selection;
+          }
+        });
+
+        if (!allMatchesInActiveSelected) {
+          toast({
+            title: "Predicción Activa Incompleta",
+            description: `La predicción actual (Nº ${submittedQuinielas.length + 1}) no está completa. Por favor, selecciona un resultado para cada partido antes de enviar, o utiliza el botón 'Agregar Predicción' para validarla y guardarla primero.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      predictionsToSubmit.push(activeQuiniela);
+    }
+
+    if (predictionsToSubmit.length === 0) {
+      toast({
+        title: "No Hay Predicciones Para Enviar",
+        description: "No has agregado ninguna predicción. Por favor, completa la quiniela actual y usa 'Agregar Predicción', o asegúrate de tener predicciones guardadas.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const quinielasText = predictionsToSubmit
       .map((quiniela, idx) => {
         const predictionsArray = matches.map((match) => {
           const predValue = quiniela[match.id];
@@ -162,16 +212,25 @@ export function MatchForm({ matches }: MatchFormProps) {
       `${quinielasText}`;
 
     const encodedMessage = encodeURIComponent(message);
-    const phone = "524437835437"; // Reemplaza con el número de teléfono real
-    const waUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+    const phoneContact = "524437835437"; // Reemplaza con el número de teléfono real
+    const waUrl = `https://wa.me/${phoneContact}?text=${encodedMessage}`;
     window.open(waUrl, "_blank");
+
+    form.reset();
+    setSubmittedQuinielas([]);
+    setActiveQuiniela(createNewQuinielaEntry(multiSelect));
+    toast({
+      title: "¡Quinielas Listas para Enviar!",
+      description: "Tus predicciones han sido preparadas y se abrirá WhatsApp.",
+      variant: "default",
+    });
   };
 
   // Sincroniza el estado al cambiar multiSelect
   useEffect(() => {
     const transformEntry = (entry: QuinielaStateEntry): QuinielaStateEntry => {
       return Object.fromEntries(
-        matches.map(match => { // Iterate over matches to ensure all match IDs are present
+        matches.map(match => {
           const currentValue = entry[match.id];
           if (multiSelect) {
             if (typeof currentValue === "string") return [match.id, [currentValue as PredictionValue]];
@@ -198,12 +257,7 @@ export function MatchForm({ matches }: MatchFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="flex items-center justify-end gap-2">
-          <span className="text-sm">Permitir varias selecciones</span>
-          <Switch checked={multiSelect} onCheckedChange={setMultiSelect} />
-        </div>
-
-        <Card className="shadow-md mt-8">
+        <Card className="shadow-md">
           <CardHeader>
             <CardTitle className="text-center text-xl font-semibold">Información del Participante</CardTitle>
           </CardHeader>
@@ -241,7 +295,7 @@ export function MatchForm({ matches }: MatchFormProps) {
 
         {/* Tabla de Quinielas Guardadas */}
         {submittedQuinielas.length > 0 && (
-          <Card className="shadow-md mt-8">
+          <Card className="shadow-md">
             <CardHeader>
               <CardTitle className="text-center text-lg font-semibold">Predicciones Guardadas</CardTitle>
             </CardHeader>
@@ -281,12 +335,16 @@ export function MatchForm({ matches }: MatchFormProps) {
           </Card>
         )}
 
-        {/* Formulario de Quiniela Activa */}
-        <Card className="shadow-md mt-8">
-          <CardHeader>
-            <CardTitle className="text-center text-lg font-semibold">
+        {/* Controles de Selección Múltiple y Formulario de Quiniela Activa */}
+        <Card className="shadow-md">
+          <CardHeader className="flex flex-col gap-y-2 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-lg font-semibold">
               Predicción {submittedQuinielas.length + 1}
             </CardTitle>
+            <div className="flex items-center self-start sm:self-center gap-2">
+              <Label htmlFor="multiSelectSwitch" className="text-sm">Permitir varias selecciones</Label>
+              <Switch id="multiSelectSwitch" checked={multiSelect} onCheckedChange={setMultiSelect} />
+            </div>
           </CardHeader>
           <CardContent>
             {matches.map((match, matchIdx) => (
@@ -370,16 +428,15 @@ export function MatchForm({ matches }: MatchFormProps) {
               </div>
             ))}
           </CardContent>
+          <CardFooter className="flex flex-col md:flex-row justify-center space-y-2 md:space-y-0 md:space-x-4 pt-6">
+            <Button type="button" onClick={addPredictionToSummary} variant="outline">
+              <Plus className="mr-2 h-4 w-4" /> Agregar Predicción
+            </Button>
+            <Button type="button" onClick={removeLastSubmittedQuiniela} variant="outline" disabled={submittedQuinielas.length === 0}>
+              <Minus className="mr-2 h-4 w-4" /> Quitar Última Guardada
+            </Button>
+          </CardFooter>
         </Card>
-
-        <div className="flex flex-col md:flex-row justify-center space-y-2 md:space-y-0 md:space-x-4">
-          <Button type="button" onClick={addPredictionToSummary} variant="outline">
-            <Plus className="mr-2 h-4 w-4" /> Agregar Predicción
-          </Button>
-          <Button type="button" onClick={removeLastSubmittedQuiniela} variant="outline" disabled={submittedQuinielas.length === 0}>
-            <Minus className="mr-2 h-4 w-4" /> Quitar Última Guardada
-          </Button>
-        </div>
 
         <Button type="submit" className="w-full text-lg py-6 mt-8" disabled={isPending || !canSubmit}>
           {isPending ? (
